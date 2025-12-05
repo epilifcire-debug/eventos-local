@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App de Cadastro de Evento</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A0F1A">
+</head>
+<body>
+  <header>
+    <img src="img/logo.png" alt="Logo" class="logo">
+    <h1>App de Cadastro de Evento</h1>
+  </header>
+
+  <main>
+    <!-- FORMULÁRIO DE EVENTO -->
+    <section class="card">
+      <h2>Cadastrar Novo Evento</h2>
+      <form id="formEvento">
+        <label>Nome do Evento</label>
+        <input type="text" id="nomeEvento" required>
+
+        <label>Data do Evento</label>
+        <input type="date" id="dataEvento" required>
+
+        <label>Classificação</label>
+        <input type="text" id="classificacao">
+
+        <label>Local</label>
+        <input type="text" id="localEvento">
+
+        <label>Formas de Pagamento</label>
+        <input type="text" id="formasPagamento" placeholder="Pix, Cartão, Dinheiro...">
+
+        <label>Descrição</label>
+        <textarea id="descricao"></textarea>
+
+        <button type="submit" class="btn-salvar">Salvar Evento</button>
+      </form>
+    </section>
+
+    <!-- LISTAGEM -->
+    <section class="card">
+      <h2>Eventos Cadastrados</h2>
+      <div id="listaEventos"></div>
+    </section>
+
+    <!-- BACKUP -->
+    <section class="card">
+      <h2>Backup & Restauração</h2>
+      <button id="btnExportar">Exportar Backup</button>
+      <input type="file" id="importarBackup" accept=".json">
+      <button id="btnImportar">Importar Backup</button>
+      <button id="btnLimpar">Limpar Dados</button>
+      <button id="btnResetar" class="btn-resetar">Resetar Sistema</button>
+    </section>
+  </main>
+
+  <footer>
+    <p>Desenvolvido por Eric Filipe</p>
+  </footer>
+
+  <!-- MODAL DE EDIÇÃO -->
+  <div id="modalEditar" class="modal">
+    <div class="modal-content">
+      <h2>Editar Evento</h2>
+      <form id="formEditar">
+        <input type="hidden" id="editId">
+        <label>Nome do Evento</label>
+        <input type="text" id="editNome" required>
+        <label>Data do Evento</label>
+        <input type="date" id="editData" required>
+        <label>Classificação</label>
+        <input type="text" id="editClassificacao">
+        <label>Local</label>
+        <input type="text" id="editLocal">
+        <label>Formas de Pagamento</label>
+        <input type="text" id="editPagamento">
+        <label>Descrição</label>
+        <textarea id="editDescricao"></textarea>
+        <div class="modal-buttons">
+          <button type="submit" class="btn-salvar">Salvar Alterações</button>
+          <button type="button" id="cancelarEdicao" class="btn-cancelar">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+
+  <script>
+    // Registro do Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log("✅ Service Worker registrado com sucesso!"))
+        .catch(err => console.log("❌ Erro ao registrar Service Worker:", err));
+    }
+  </script>
+</body>
+</html>
