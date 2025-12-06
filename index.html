@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sistema PCD — Eventos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- jsPDF para gerar PDF -->
+  
+<script>
+// ===================== UTILIDADES CPF =====================
+function somenteNumeros(s) {
+  return String(s || "").replace(/\D/g, "");
+}
+function formatCPF(raw) {
+  const d = somenteNumeros(raw).padStart(11, "0").slice(0,11);
+  if (d.length !== 11) return raw;
+  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9,11)}`;
+}
+function normalizeCPF(s) {
+  return somenteNumeros(s);
+}
+
+// ===================== MÁSCARA DE CPF =====================
+document.addEventListener("DOMContentLoaded", () => {
+  const cpfInput = document.getElementById("p-cpf");
+  if (cpfInput) {
+    cpfInput.addEventListener("input", (e) => {
+      let v = somenteNumeros(e.target.value);
+      if (v.length > 11) v = v.slice(0,11);
+      if (v.length <= 3) e.target.value = v;
+      else if (v.length <= 6) e.target.value = `${v.slice(0,3)}.${v.slice(3)}`;
+      else if (v.length <= 9) e.target.value = `${v.slice(0,3)}.${v.slice(3,6)}.${v.slice(6)}`;
+      else e.target.value = `${v.slice(0,3)}.${v.slice(3,6)}.${v.slice(6,9)}-${v.slice(9)}`;
+    });
+    cpfInput.addEventListener("blur", (e) => {
+      e.target.value = formatCPF(e.target.value);
+    });
+  }
+});
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --text: #222;
+      --border: #dddddd;
+      --accent1: #8338ec;
+      --accent2: #ff006e;
+      --accent3: #ffbe0b;
+      --btn-text: #ffffff;
+      --shadow: rgba(0,0,0,0.08);
+    }
+
+    body.dark {
+      --bg: #222222;
+      --card: #333333;
+      --text: #f1f1f1;
+      --border: #555555;
+      --shadow: rgba(0,0,0,0.55);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    header {
+      background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+      color: white;
+      text-align: center;
+      padding: 16px 8px 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .logos-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .logo {
+      width: 180px;
+      height: 180px;
+      object-fit: contain;
+      transition: transform .3s ease;
+    }
+    .logo:hover { transform: scale(1.05); }
+
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 20px auto 40px;
+      padding: 0 10px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      box-shadow: 0 4px 14px var(--shadow);
+      border: 1px solid var(--border);
+      transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    }
+
+    .hidden { display: none; }
+
+    .nav-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+      justify-content: center;
+    }
+
+    .nav-buttons button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+      color: var(--btn-text);
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: transform .15s ease, box-shadow .15s ease, opacity .2s ease;
+    }
+
+    .nav-buttons button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+      opacity: 0.95;
+    }
+
+    .nav-buttons button.active {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.7);
+    }
+
+    .top-controls {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    button.primary {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+      color: var(--btn-text);
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      transition: transform .15s ease, box-shadow .15s ease, opacity .2s ease;
+    }
+    button.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      opacity: 0.95;
+    }
+
+    button.ghost {
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+      transition: background .15s ease, color .15s ease, transform .1s ease;
+    }
+    button.ghost:hover {
+      background: rgba(0,0,0,0.05);
+      transform: translateY(-1px);
+    }
+
+    #btn-theme {
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 18px;
+    }
+
+    label {
+      display: block;
+      margin-top: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      margin-top: 4px;
+      padding: 7px 9px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      background: transparent;
+      color: var(--text);
+      transition: border-color .2s ease, background .2s ease, color .2s ease;
+    }
+
+    textarea { resize: vertical; }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent1);
+      box-shadow: 0 0 0 1px rgba(131,56,236,0.3);
+      background: rgba(255,255,255,0.03);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid rgba(220,220,220,0.6);
+      padding: 6px 4px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    body.dark th, body.dark td {
+      border-bottom-color: #444;
+    }
+
+    th { font-weight: 600; }
+
+    .msg {
+      padding: 6px 10px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    .msg.ok   { background:#e5ffe9; color:#0b7a29; }
+    .msg.err  { background:#ffe5e5; color:#b01818; }
+
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .docs-grid label { font-weight: 500; }
+
+    .docs-grid input[type="file"] {
+      margin-top: 4px;
+      padding: 3px;
+      font-size: 13px;
+    }
+
+    .status-bolinha {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-left: 6px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(0,0,0,0.4);
+    }
+    .status-ok       { background:#1dd85f; box-shadow:0 0 10px rgba(29,216,95,0.9); }
+    .status-pendente { background:#ff3b3b; box-shadow:0 0 10px rgba(255,59,59,0.9); }
+
+    #tel-msg {
+      font-size: 12px;
+      color: #c77d00;
+      display: none;
+      margin-top: 4px;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 20px;
+    }
+
+    /* Admin list */
+    #admin-users {
+      max-height: 240px;
+      overflow-y: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 8px;
+      font-size: 13px;
+    }
+    .admin-user-item {
+      padding: 6px 4px;
+      border-bottom: 1px solid rgba(220,220,220,0.5);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    body.dark .admin-user-item {
+      border-bottom-color: #444;
+    }
+
+    .admin-user-meta {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 18px; }
+      .logo { width: 140px; height: 140px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logos-container">
+      <img src="Logo-do-Pre-Caju-1.png" alt="Logo Pré-Caju" class="logo">
+      <img src="images.png" alt="Logo Point do Ingresso" class="logo">
+    </div>
+    <h1>Sistema PCD — Eventos</h1>
+  </header>
+
+  <main>
+    <!-- Controles topo (só quando logado) -->
+    <div id="top-controls" class="top-controls hidden">
+      <button id="btn-theme" class="ghost" title="Alternar tema">🌙</button>
+      <button id="btn-admin" class="ghost" title="Administração do sistema">Admin</button>
+      <button id="btn-logout" class="ghost" title="Sair do sistema">Sair</button>
+    </div>
+
+    <!-- TELA DE LOGIN -->
+    <section id="login-screen" class="card">
+      <h2 style="text-align:center;">Acesso ao Sistema</h2>
+      <label>Usuário</label>
+      <input id="login-user" autocomplete="username">
+
+      <label>Senha</label>
+      <input id="login-pass" type="password" autocomplete="current-password">
+
+      <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
+        <button id="btn-login" class="primary" style="min-width:120px;">Entrar</button>
+      </div>
+
+      <div id="login-msg" class="msg hidden"></div>
+    </section>
+
+    <!-- APLICAÇÃO PRINCIPAL -->
+    <div id="app" class="hidden">
+      <section class="card">
+        <div class="nav-buttons">
+          <button data-target="card-eventos" class="active">Eventos</button>
+          <button data-target="card-pessoas">Pessoas</button>
+          <button data-target="card-relatorios">Relatórios</button>
+        </div>
+      </section>
+
+      <!-- CARD EVENTOS -->
+      <section id="card-eventos" class="card">
+        <h2>Cadastro de Eventos</h2>
+
+        <label>Nome do Evento</label>
+        <input id="ev-nome">
+
+        <label>Data do Evento</label>
+        <input id="ev-data" type="date">
+
+        <label>Descrição</label>
+        <textarea id="ev-desc" rows="2"></textarea>
+
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="ev-salvar" class="primary">Salvar Evento</button>
+          <button id="ev-limpar" class="ghost">Limpar</button>
+        </div>
+
+        <div id="ev-msg" class="msg hidden"></div>
+
+        <h3 style="margin-top:16px;">Eventos Cadastrados</h3>
+        <table>
+          <thead>
+          <tr>
+            <th>Data</th>
+            <th>Nome</th>
+            <th>Descrição</th>
+            <th>Ações</th>
+          </tr>
+          </thead>
+          <tbody id="tab-eventos"></tbody>
+        </table>
+      </section>
+
+      <!-- CARD PESSOAS -->
+      <section id="card-pessoas" class="card hidden">
+        <h2>Cadastro de Pessoas</h2>
+
+        <label>Buscar</label>
+        <input id="p-busca" placeholder="Buscar por nome ou CPF">
+
+        <label style="margin-top:8px;">Nome</label>
+        <input id="p-nome">
+
+        <label>CPF</label>
+        <input id="p-cpf" maxlength="14" placeholder="Somente números">
+
+        <label>Telefone
+          <span title="Formato: (DD) 99999-9999 — opcional" style="cursor:help;">ℹ️</span>
+        </label>
+        <input id="p-tel" placeholder="(79) 99999-9999">
+        <div id="tel-msg"></div>
+
+        <label>Descrição</label>
+        <textarea id="p-desc" rows="2"></textarea>
+
+        <label>Evento(s) — segure Ctrl/Cmd para selecionar múltiplos</label>
+        <select id="p-eventos" multiple size="4"></select>
+
+        <!-- DOCUMENTOS -->
+        <h3 style="margin-top:14px;">📸 Documentos da Pessoa</h3>
+        <div class="docs-grid">
+          <label>Requerimento (obrigatório)
+            <input type="file" id="doc-requerimento" accept=".pdf,image/jpeg,image/jpg,image/png">
+          </label>
+          <label>Foto (obrigatório)
+            <input type="file" id="doc-foto" accept=".pdf,image/jpeg,image/jpg,image/png">
+          </label>
+          <label>Documento oficial com foto (obrigatório)
+            <input type="file" id="doc-docoficial" accept=".pdf,image/jpeg,image/jpg,image/png">
+          </label>
+          <label>Laudo médico (obrigatório)
+            <input type="file" id="doc-laudo" accept=".pdf,image/jpeg,image/jpg,image/png">
+          </label>
+          <label>Cad Único (obrigatório)
+            <input type="file" id="doc-cadunico" accept=".pdf,image/jpeg,image/jpg,image/png">
+          </label>
+          <label>Cartão BPC (opcional)
+            <input type="file" id="doc-bpc" accept=".pdf,image/jpeg,image/jpg,image/png">
+          </label>
+          <label>Comprovante de residência (obrigatório)
+            <input type="file" id="doc-comprovante" accept=".pdf,image/jpeg,image/jpg,image/png">
+          </label>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="p-salvar" class="primary">Salvar Pessoa</button>
+          <button id="p-limpar" class="ghost">Limpar</button>
+          <button id="p-enviar-docs" class="primary">📸 Enviar Documentos</button>
+          <button id="p-ver-docs" class="ghost">👁️ Visualizar Documentos</button>
+        </div>
+
+        <div id="p-msg" class="msg hidden"></div>
+
+        <h3 style="margin-top:16px;">Pessoas Cadastradas</h3>
+        <table>
+          <thead>
+          <tr>
+            <th>Nome</th>
+            <th>CPF</th>
+            <th>Evento(s)</th>
+            <th>Ações</th>
+          </tr>
+          </thead>
+          <tbody id="tab-pessoas"></tbody>
+        </table>
+      </section>
+
+      <!-- CARD RELATÓRIOS -->
+      <section id="card-relatorios" class="card hidden">
+        <h2>Relatórios</h2>
+
+        <label>Evento</label>
+        <select id="r-evento"></select>
+
+        <div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;">
+          <button id="r-filtrar" class="ghost">Filtrar</button>
+          <button id="r-pdf" class="ghost">Exportar PDF</button>
+          <button id="r-print" class="ghost">Visualizar Impressão</button>
+          <button id="r-backup" class="primary">⬇️ Exportar Backup</button>
+          <button id="r-restore" class="ghost">⬆️ Importar Backup</button>
+          <input type="file" id="r-backup-file" accept=".json" style="display:none;">
+        </div>
+
+        <div id="r-msg" class="msg hidden"></div>
+      </section>
+
+      <!-- CARD ADMIN -->
+      <section id="card-admin" class="card hidden">
+        <h2>Administração de Usuários</h2>
+        <p style="font-size:13px; opacity:0.8;">Apenas usuários com perfil <strong>Administrador</strong> podem acessar este painel.</p>
+
+        <h3>Novo / Editar Usuário</h3>
+        <label>Usuário (login)</label>
+        <input id="a-user" placeholder="ex: joao">
+
+        <label>Senha</label>
+        <input id="a-pass" type="password" placeholder="defina uma senha">
+
+        <label>Nome Completo</label>
+        <input id="a-nome" placeholder="Nome visível no sistema">
+
+        <label>Tipo de Usuário</label>
+        <select id="a-role">
+          <option value="admin">Administrador</option>
+          <option value="user">Padrão</option>
+        </select>
+
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="a-salvar" class="primary">Salvar Usuário</button>
+          <button id="a-limpar" class="ghost">Limpar</button>
+        </div>
+
+        <h3 style="margin-top:16px;">Usuários Cadastrados</h3>
+        <div id="admin-users"></div>
+      </section>
+
+      <footer>
+        Sistema PCD Local — Dados em navegador + documentos no servidor Node.js
+      </footer>
+    </div>
+  </main>
+
+  <!-- ===================================================== -->
+  <!-- SCRIPT PRINCIPAL                                      -->
+  <!-- ===================================================== -->
+  <script>
+    // ===================== DADOS EM LOCALSTORAGE =====================
+    let eventos  = JSON.parse(localStorage.getItem("eventos")  || "[]");
+    let pessoas  = JSON.parse(localStorage.getItem("pessoas")  || "[]");
+    let usuarios = JSON.parse(localStorage.getItem("usuarios") || "[]");
+    let usuarioAtual = null;
+
+    // garante campo data em eventos
+    eventos = eventos.map(e => ({ ...e, data: e.data || "" }));
+
+    const DEFAULT_USERS = [
+      { user:"admin", pass:"1234", nome:"Administrador", role:"admin" }
+    ];
+    if (usuarios.length === 0) {
+      usuarios = DEFAULT_USERS;
+      localStorage.setItem("usuarios", JSON.stringify(usuarios));
+    }
+
+    // 🔹 BACKEND LOCAL x ONLINE (Render)
+    const servidor = window.location.hostname.includes("localhost")
+      ? "http://localhost:3000"
+      : "https://pcd-eventos.onrender.com";
+
+    async function backupOnline() {
+      try {
+        const backup = { eventos, pessoas, usuarios };
+        await fetch(servidor + "/backup-json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(backup),
+        });
+        console.log("💾 Backup online enviado com sucesso");
+      } catch (err) {
+        console.error("Erro ao enviar backup online:", err);
+      }
+    }
+
+    function salvarTudo() {
+      localStorage.setItem("eventos",  JSON.stringify(eventos));
+      localStorage.setItem("pessoas",  JSON.stringify(pessoas));
+      localStorage.setItem("usuarios", JSON.stringify(usuarios));
+      // backup automático leve em localStorage
+      localStorage.setItem("backupAuto", JSON.stringify({
+        eventos, pessoas, usuarios, ts: Date.now()
+      }));
+      // backup automático no Cloudinary
+      backupOnline();
+    }
+
+    // ===================== TEMA (CLARO / ESCURO) =====================
+    const btnTheme = document.getElementById("btn-theme");
+
+    function aplicarTemaInicial() {
+      const tema = localStorage.getItem("tema") || "claro";
+      document.body.classList.toggle("dark", tema === "escuro");
+      btnTheme.textContent = tema === "escuro" ? "☀️" : "🌙";
+    }
+
+    btnTheme.addEventListener("click", () => {
+      const modoEscuro = !document.body.classList.contains("dark");
+      document.body.classList.toggle("dark", modoEscuro);
+      localStorage.setItem("tema", modoEscuro ? "escuro" : "claro");
+      btnTheme.textContent = modoEscuro ? "☀️" : "🌙";
+    });
+
+    aplicarTemaInicial();
+
+    // ===================== LOGIN =====================
+    const loginScreen = document.getElementById("login-screen");
+    const app         = document.getElementById("app");
+    const loginUser   = document.getElementById("login-user");
+    const loginPass   = document.getElementById("login-pass");
+    const loginMsg    = document.getElementById("login-msg");
+    const topControls = document.getElementById("top-controls");
+    const btnAdmin    = document.getElementById("btn-admin");
+    const btnLogout   = document.getElementById("btn-logout");
+
+    document.getElementById("btn-login").addEventListener("click", () => {
+      const u = loginUser.value.trim();
+      const p = loginPass.value.trim();
+      const user = usuarios.find(x => x.user === u && x.pass === p);
+      if (!user) {
+        showMsg(loginMsg,"Usuário ou senha inválidos",true);
+        return;
+      }
+      usuarioAtual = user;
+      loginScreen.classList.add("hidden");
+      app.classList.remove("hidden");
+      topControls.classList.remove("hidden");
+      atualizarInterface();
+      atualizarVisibilidadeAdmin();
+    });
+
+    btnLogout.addEventListener("click", () => {
+      if (!confirm("Deseja realmente sair do sistema?")) return;
+      usuarioAtual = null;
+      loginUser.value = "";
+      loginPass.value = "";
+      app.classList.add("hidden");
+      topControls.classList.add("hidden");
+      loginScreen.classList.remove("hidden");
+    });
+
+    function atualizarVisibilidadeAdmin() {
+      const isAdmin = usuarioAtual && usuarioAtual.role === "admin";
+      btnAdmin.style.display = isAdmin ? "inline-flex" : "none";
+    }
+
+    function showMsg(el, texto, erro=false) {
+      el.textContent = texto;
+      el.className = "msg " + (erro ? "err" : "ok");
+      el.classList.remove("hidden");
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.add("hidden"), 3000);
+    }
+
+    // ===================== NAVEGAÇÃO ENTRE CARDS =====================
+    const navBtns    = document.querySelectorAll(".nav-buttons button");
+    const cardEventos= document.getElementById("card-eventos");
+    const cardPessoas= document.getElementById("card-pessoas");
+    const cardRel    = document.getElementById("card-relatorios");
+    const cardAdmin  = document.getElementById("card-admin");
+
+    navBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        navBtns.forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        const alvo = btn.dataset.target;
+        cardEventos.classList.add("hidden");
+        cardPessoas.classList.add("hidden");
+        cardRel.classList.add("hidden");
+        cardAdmin.classList.add("hidden");
+        document.getElementById(alvo).classList.remove("hidden");
+      });
+    });
+
+    btnAdmin.addEventListener("click", () => {
+      navBtns.forEach(b=>b.classList.remove("active"));
+      cardEventos.classList.add("hidden");
+      cardPessoas.classList.add("hidden");
+      cardRel.classList.add("hidden");
+      cardAdmin.classList.remove("hidden");
+    });
+
+    // ===================== EVENTOS =====================
+    const evNome   = document.getElementById("ev-nome");
+    const evData   = document.getElementById("ev-data");
+    const evDesc   = document.getElementById("ev-desc");
+    const evMsg    = document.getElementById("ev-msg");
+    const tabEventos = document.getElementById("tab-eventos");
+    let idEventoEditando = null;
+
+    document.getElementById("ev-salvar").addEventListener("click", () => {
+      const nome = evNome.value.trim();
+      const data = evData.value.trim();
+      const desc = evDesc.value.trim();
+      if (!nome) { showMsg(evMsg,"Informe o nome do evento",true); return; }
+
+      if (idEventoEditando) {
+        const ev = eventos.find(e=>e.id===idEventoEditando);
+        if (ev) {
+          ev.nome = nome;
+          ev.data = data;
+          ev.desc = desc;
+        }
+        idEventoEditando = null;
+        showMsg(evMsg,"Evento atualizado!");
+      } else {
+        eventos.push({ id: "EV"+Date.now(), nome, data, desc });
+        showMsg(evMsg,"Evento cadastrado!");
+      }
+      evNome.value = "";
+      evData.value = "";
+      evDesc.value = "";
+      salvarTudo();
+      atualizarInterface();
+    });
+
+    document.getElementById("ev-limpar").addEventListener("click", () => {
+      idEventoEditando = null;
+      evNome.value = "";
+      evData.value = "";
+      evDesc.value = "";
+    });
+
+    function renderEventos() {
+      tabEventos.innerHTML = "";
+      const ordenados = [...eventos].sort((a,b)=>{
+        if (!a.data && !b.data) return 0;
+        if (!a.data) return 1;
+        if (!b.data) return -1;
+        return a.data.localeCompare(b.data);
+      });
+
+      ordenados.forEach(ev => {
+        const tr = document.createElement("tr");
+        const dataFmt = ev.data ? ev.data.split("-").reverse().join("/") : "—";
+        tr.innerHTML = `
+          <td>${escapeHtml(dataFmt)}</td>
+          <td>${escapeHtml(ev.nome)}</td>
+          <td>${escapeHtml(ev.desc||"")}</td>
+          <td>
+            <button class="ghost btn-edit-ev">Editar</button>
+            <button class="ghost btn-del-ev">Excluir</button>
+          </td>
+        `;
+        tr.querySelector(".btn-edit-ev").addEventListener("click", ()=>{
+          idEventoEditando = ev.id;
+          evNome.value = ev.nome;
+          evData.value = ev.data || "";
+          evDesc.value = ev.desc || "";
+          showMsg(evMsg,"Editando evento, salve para confirmar");
+        });
+        tr.querySelector(".btn-del-ev").addEventListener("click", ()=>{
+          if (!confirm("Excluir este evento?")) return;
+          eventos = eventos.filter(e=>e.id!==ev.id);
+          pessoas = pessoas.map(p => ({
+            ...p,
+            eventos: (p.eventos||[]).filter(id=>id!==ev.id)
+          }));
+          salvarTudo();
+          atualizarInterface();
+        });
+        tabEventos.appendChild(tr);
+      });
+    }
+
+    // ===================== PESSOAS =====================
+    const pBusca   = document.getElementById("p-busca");
+    const pNome    = document.getElementById("p-nome");
+    const pCpf     = document.getElementById("p-cpf");
+    const pTel     = document.getElementById("p-tel");
+    const pDesc    = document.getElementById("p-desc");
+    const pEvSel   = document.getElementById("p-eventos");
+    const pMsg     = document.getElementById("p-msg");
+    const tabPessoas = document.getElementById("tab-pessoas");
+    let cpfEditando = null;
+
+    const DOCS_OBRIGATORIOS = [
+      "doc-requerimento",
+      "doc-foto",
+      "doc-docoficial",
+      "doc-laudo",
+      "doc-cadunico",
+      "doc-comprovante",
+    ];
+
+    function pessoaDocsOk(p) {
+      const d = p.docs || {};
+      return DOCS_OBRIGATORIOS.every(campo => !!d[campo]);
+    }
+
+    document.getElementById("p-salvar").addEventListener("click", () => {
+      const nome = pNome.value.trim();
+      const cpf  = pCpf.value.trim();
+      const tel  = pTel.value.trim();
+      const desc = pDesc.value.trim();
+      const eventosSelecionados = Array.from(pEvSel.selectedOptions).map(o=>o.value);
+
+      if (!nome || !cpf) { showMsg(pMsg,"Nome e CPF são obrigatórios",true); return; }
+
+      if (cpfEditando) {
+        const p = pessoas.find(x=>x.cpf===cpfEditando);
+        if (p) {
+          p.nome = nome;
+          p.cpf  = cpf;
+          p.tel  = tel;
+          p.desc = desc;
+          p.eventos = eventosSelecionados;
+        }
+        cpfEditando = null;
+        showMsg(pMsg,"Pessoa atualizada!");
+      } else {
+        if (pessoas.some(x=>x.cpf===cpf)) {
+          showMsg(pMsg,"Já existe pessoa com esse CPF",true);
+          return;
+        }
+        pessoas.push({
+          nome, cpf, tel, desc,
+          eventos: eventosSelecionados,
+          docs: {}
+        });
+        showMsg(pMsg,"Pessoa cadastrada!");
+      }
+
+      limparPessoaForm();
+      salvarTudo();
+      atualizarInterface();
+    });
+
+    document.getElementById("p-limpar").addEventListener("click", limparPessoaForm);
+
+    function limparPessoaForm() {
+      cpfEditando = null;
+      pNome.value = "";
+      pCpf.value = "";
+      pTel.value = "";
+      pDesc.value = "";
+      Array.from(pEvSel.options).forEach(o=>o.selected=false);
+      ["doc-requerimento","doc-foto","doc-docoficial","doc-laudo","doc-cadunico","doc-bpc","doc-comprovante"]
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value=""; });
+      validarTelefone();
+    }
+
+    pBusca.addEventListener("input", renderPessoas);
+
+    function renderPessoas() {
+      tabPessoas.innerHTML = "";
+      const termo = (pBusca.value || "").toLowerCase();
+      const ord = [...pessoas].sort((a,b)=>a.nome.localeCompare(b.nome,"pt",{sensitivity:"base"}));
+      ord.filter(p => p.nome.toLowerCase().includes(termo) || (p.cpf||"").includes(termo))
+        .forEach(p => {
+          const nomesEv = (p.eventos||[])
+            .map(id => eventos.find(e=>e.id===id)?.nome || "")
+            .filter(Boolean).join(", ");
+          const okDocs = pessoaDocsOk(p);
+          const statusClass = okDocs ? "status-ok" : "status-pendente";
+          const statusTitle = okDocs ? "Todos documentos obrigatórios enviados" : "Faltam documentos obrigatórios";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(p.nome)} <span class="status-bolinha ${statusClass}" title="${statusTitle}"></span></td>
+            <td>${escapeHtml(p.cpf)}</td>
+            <td>${escapeHtml(nomesEv)}</td>
+            <td>
+              <button class="ghost btn-edit-p">Editar</button>
+              <button class="ghost btn-del-p">Excluir</button>
+            </td>
+          `;
+          tr.querySelector(".btn-edit-p").addEventListener("click", () => {
+            cpfEditando = p.cpf;
+            pNome.value = p.nome;
+            pCpf.value = p.cpf;
+            pTel.value = p.tel || "";
+            pDesc.value = p.desc || "";
+            Array.from(pEvSel.options).forEach(o=>{
+              o.selected = (p.eventos||[]).includes(o.value);
+            });
+            validarTelefone();
+            showMsg(pMsg,"Editando pessoa, salve para confirmar");
+          });
+          tr.querySelector(".btn-del-p").addEventListener("click", () => {
+            if (!confirm("Excluir esta pessoa?")) return;
+            pessoas = pessoas.filter(x=>x.cpf!==p.cpf);
+            salvarTudo();
+            atualizarInterface();
+          });
+          tabPessoas.appendChild(tr);
+        });
+    }
+
+    // ===================== UPLOAD DE DOCUMENTOS (CLOUDINARY) =====================
+    const btnEnviarDocs = document.getElementById("p-enviar-docs");
+    const btnVerDocs    = document.getElementById("p-ver-docs");
+
+    btnEnviarDocs.addEventListener("click", async () => {
+      const nome = pNome.value.trim();
+      const cpf  = pCpf.value.trim();
+      if (!nome || !cpf) {
+        showMsg(pMsg,"Preencha Nome e CPF e salve a pessoa antes de enviar documentos.",true);
+        return;
+      }
+      let pessoa = pessoas.find(p=>p.cpf===cpf);
+      if (!pessoa) {
+        showMsg(pMsg,"Salve a pessoa primeiro (clique em Salvar).",true);
+        return;
+      }
+
+      const campos = [
+        "doc-requerimento",
+        "doc-foto",
+        "doc-docoficial",
+        "doc-laudo",
+        "doc-cadunico",
+        "doc-bpc",
+        "doc-comprovante"
+      ];
+
+      const formData = new FormData();
+      formData.append("nomePessoa", nome);
+
+      let selecionouAlgum = false;
+      campos.forEach(campo => {
+        const el = document.getElementById(campo);
+        if (el && el.files && el.files.length > 0) {
+          selecionouAlgum = true;
+          formData.append(campo, el.files[0]);
+        }
+      });
+
+      if (!selecionouAlgum) {
+        showMsg(pMsg,"Selecione pelo menos um arquivo para enviar.",true);
+        return;
+      }
+
+      showMsg(pMsg,"Enviando documentos, aguarde...");
+
+      try {
+        const resp = await fetch(servidor + "/upload", {
+          method: "POST",
+          body: formData
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.error || "Falha no envio");
+        }
+
+        pessoa.docs = {
+          ...(pessoa.docs || {}),
+          ...(data.arquivos || {})
+        };
+
+        salvarTudo();
+        atualizarInterface();
+        showMsg(pMsg,"Documentos enviados com sucesso!");
+      } catch (e) {
+        console.error(e);
+        showMsg(pMsg,"Erro ao enviar documentos para o servidor.",true);
+      }
+    });
+
+    btnVerDocs.addEventListener("click", () => {
+      const cpf  = pCpf.value.trim();
+      const pessoa = pessoas.find(p => p.cpf === cpf);
+
+      if (!pessoa || !pessoa.docs) {
+        showMsg(pMsg, "Nenhum documento encontrado para esta pessoa.", true);
+        return;
+      }
+
+      let html = `<h2>📂 Documentos de ${escapeHtml(pessoa.nome)}</h2>`;
+
+      for (const [campo, info] of Object.entries(pessoa.docs)) {
+        if (!info || !info.url) continue;
+        html += `
+          <p>
+            <strong>${escapeHtml(campo)}:</strong>
+            <a href="${info.url}" target="_blank">${info.url}</a>
+          </p>
+        `;
+      }
+
+      const w = window.open("", "_blank");
+      w.document.write(`<html><head><meta charset="utf-8"><title>Documentos</title></head><body>${html}</body></html>`);
+      w.document.close();
+    });
+
+    // ===================== RELATÓRIOS / PDF / IMPRESSÃO =====================
+    const rEventoSel = document.getElementById("r-evento");
+    const rMsg       = document.getElementById("r-msg");
+
+    document.getElementById("r-filtrar").addEventListener("click", () => {
+      const idEv = rEventoSel.value;
+      if (!idEv) { showMsg(rMsg,"Selecione um evento.",true); return; }
+      const lista = pessoas
+        .filter(p => (p.eventos||[]).includes(idEv) && pessoaDocsOk(p))
+        .sort((a,b)=>a.nome.localeCompare(b.nome,"pt",{sensitivity:"base"}));
+      showMsg(rMsg,`${lista.length} pessoa(s) com todos documentos obrigatórios.`);
+    });
+
+    document.getElementById("r-pdf").addEventListener("click", () => {
+      const idEv = rEventoSel.value;
+      const ev = eventos.find(e=>e.id===idEv);
+      if (!ev) { alert("Selecione um evento."); return; }
+
+      const lista = pessoas
+        .filter(p => (p.eventos||[]).includes(idEv) && pessoaDocsOk(p))
+        .sort((a,b)=>a.nome.localeCompare(b.nome,"pt",{sensitivity:"base"}));
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({unit:"pt",format:"a4"});
+      pdf.setFontSize(16);
+      pdf.text(`Relatório — ${ev.nome}`, 297.5, 50, {align:"center"});
+      pdf.setFontSize(11);
+
+      let y = 90;
+      lista.forEach((p,i)=>{
+        pdf.text(`${i+1}. ${p.nome}`, 60, y); y+=14;
+        pdf.text(`CPF: ${p.cpf}`, 60, y); y+=18;
+        pdf.text(`ASS: _____________________________   DATA: ____/____/____`, 60, y);
+        y += 24;
+        pdf.setDrawColor(140);
+        pdf.setLineDash([2,2],0);
+        pdf.line(50, y, 545, y);
+        y += 20;
+        if (y>760) { pdf.addPage(); pdf.setFontSize(11); y=60; }
+      });
+
+      pdf.save(`Relatorio-${sanitizeFilename(ev.nome)}.pdf`);
+    });
+
+    document.getElementById("r-print").addEventListener("click", () => {
+      const idEv = rEventoSel.value;
+      const ev = eventos.find(e=>e.id===idEv);
+      if (!ev) { alert("Selecione um evento."); return; }
+
+      const lista = pessoas
+        .filter(p => (p.eventos||[]).includes(idEv) && pessoaDocsOk(p))
+        .sort((a,b)=>a.nome.localeCompare(b.nome,"pt",{sensitivity:"base"}));
+
+      let html = `
+        <html><head><meta charset="utf-8">
+        <title>Relatório - ${escapeHtml(ev.nome)}</title>
+        <style>
+          body { font-family:Arial, sans-serif; padding:32px; }
+          h1 { text-align:center; margin-bottom:24px; }
+          .item { margin-bottom:18px; }
+          .linha { border-bottom:1px dashed #333; margin-top:6px; }
+        </style></head><body>
+        <h1>Relatório — ${escapeHtml(ev.nome)}</h1>
+      `;
+
+      lista.forEach((p,i)=>{
+        html += `
+          <div class="item">
+            <strong>${i+1}. ${escapeHtml(p.nome)}</strong><br>
+            CPF: ${escapeHtml(p.cpf)}<br><br>
+            ASS: _____________________________ &nbsp;&nbsp; DATA: ____/____/____
+            <div class="linha"></div>
+          </div>
+        `;
+      });
+
+      html += `</body></html>`;
+      const w = window.open("","_blank");
+      w.document.write(html);
+      w.document.close();
+    });
+
+    // ===================== BACKUP (LOCAL + CLOUDINARY) =====================
+    document.getElementById("r-backup").addEventListener("click", async () => {
+      const backup = { eventos, pessoas, usuarios };
+
+      // 1) Backup local em arquivo .json
+      const blob = new Blob([JSON.stringify(backup,null,2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "backup-pcd.json";
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // 2) Backup online no Cloudinary
+      try {
+        await fetch(servidor + "/backup-json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(backup),
+        });
+        alert("Backup exportado com sucesso!\nTambém foi salvo no Cloudinary.");
+      } catch (err) {
+        console.error("Erro ao enviar backup para o Cloudinary:", err);
+        alert("Backup local exportado.\n⚠️ Não foi possível salvar no Cloudinary.");
+      }
+    });
+
+    document.getElementById("r-restore").addEventListener("click", () => {
+      document.getElementById("r-backup-file").click();
+    });
+
+    document.getElementById("r-backup-file").addEventListener("change", function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!data.eventos || !data.pessoas || !data.usuarios) {
+            alert("Arquivo de backup inválido."); return;
+          }
+          if (!confirm("Importar backup irá sobrescrever os dados atuais. Continuar?")) return;
+          eventos  = (data.eventos||[]).map(e=>({ ...e, data:e.data||"" }));
+          pessoas  = data.pessoas || [];
+          usuarios = data.usuarios || [];
+          salvarTudo();
+          atualizarInterface();
+          alert("Backup importado com sucesso!");
+        } catch(err) {
+          console.error(err);
+          alert("Erro ao ler o arquivo de backup.");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // backup automático leve em localStorage (a cada 60s)
+    function backupAutomatico() {
+      localStorage.setItem("backupAuto", JSON.stringify({
+        eventos, pessoas, usuarios, ts: Date.now()
+      }));
+    }
+    setInterval(backupAutomatico, 60000);
+    window.addEventListener("beforeunload", backupAutomatico);
+
+    // ===================== TELEFONE - MÁSCARA + AVISO =====================
+    const telInput = document.getElementById("p-tel");
+    const telMsg   = document.getElementById("tel-msg");
+
+    if (telInput) {
+      telInput.addEventListener("input", (e) => {
+        let v = e.target.value.replace(/\D/g,"");
+        if (v.length>11) v = v.slice(0,11);
+
+        if (v.length>6) {
+          v = v.replace(/^(\d{2})(\d{5})(\d{0,4}).*/,"($1) $2-$3");
+        } else if (v.length>2) {
+          v = v.replace(/^(\d{2})(\d{0,5})/,"($1) $2");
+        } else if (v.length>0) {
+          v = v.replace(/^(\d{0,2})/,"($1");
+        }
+
+        e.target.value = v.trim();
+        validarTelefone();
+      });
+    }
+
+    function validarTelefone() {
+      if (!telInput) return;
+      const val = telInput.value.trim();
+      if (!val) {
+        telMsg.style.display = "none";
+        telMsg.textContent = "";
+        return;
+      }
+      const numeros = val.replace(/\D/g,"");
+      if (numeros.length<10 || numeros.length>11) {
+        telMsg.textContent = "⚠️ Número de telefone incompleto (opcional)";
+        telMsg.style.display = "block";
+      } else {
+        telMsg.textContent = "";
+        telMsg.style.display = "none";
+      }
+    }
+
+    // ===================== ADMIN - GERENCIAMENTO DE USUÁRIOS =====================
+    const aUser   = document.getElementById("a-user");
+    const aPass   = document.getElementById("a-pass");
+    const aNome   = document.getElementById("a-nome");
+    const aRole   = document.getElementById("a-role");
+    const aSalvar = document.getElementById("a-salvar");
+    const aLimpar = document.getElementById("a-limpar");
+    const adminUsers = document.getElementById("admin-users");
+
+    aSalvar.addEventListener("click", () => {
+      const user = aUser.value.trim();
+      const pass = aPass.value.trim();
+      const nome = aNome.value.trim();
+      const role = aRole.value;
+
+      if (!user || !pass) {
+        alert("Usuário e senha são obrigatórios.");
+        return;
+      }
+
+      const existente = usuarios.find(u => u.user === user);
+      if (existente) {
+        existente.pass = pass;
+        existente.nome = nome;
+        existente.role = role;
+      } else {
+        usuarios.push({ user, pass, nome, role });
+      }
+
+      salvarTudo();
+      renderUsuarios();
+      alert("Usuário salvo com sucesso!");
+    });
+
+    aLimpar.addEventListener("click", () => {
+      aUser.value = "";
+      aPass.value = "";
+      aNome.value = "";
+      aRole.value = "admin";
+    });
+
+    function renderUsuarios() {
+      adminUsers.innerHTML = "";
+      const ord = [...usuarios];
+      ord.forEach(u => {
+        const div = document.createElement("div");
+        div.className = "admin-user-item";
+        const meta = document.createElement("div");
+        meta.className = "admin-user-meta";
+        meta.innerHTML = `
+          <strong>${escapeHtml(u.user)}</strong> — ${escapeHtml(u.nome||"")}<br>
+          Perfil: <em>${u.role === "admin" ? "Administrador" : "Padrão"}</em>
+        `;
+        const actions = document.createElement("div");
+        const btnDel = document.createElement("button");
+        btnDel.className = "ghost";
+        btnDel.textContent = "Excluir";
+        if (u.user === "admin") {
+          btnDel.disabled = true;
+          btnDel.title = "Não é possível excluir o administrador padrão";
+        } else {
+          btnDel.addEventListener("click", () => {
+            if (!confirm("Excluir usuário "+u.user+"?")) return;
+            usuarios = usuarios.filter(x=>x.user!==u.user);
+            salvarTudo();
+            renderUsuarios();
+          });
+        }
+
+        const btnEdit = document.createElement("button");
+        btnEdit.className = "ghost";
+        btnEdit.textContent = "Editar";
+        btnEdit.addEventListener("click", () => {
+          aUser.value = u.user;
+          aPass.value = u.pass;
+          aNome.value = u.nome || "";
+          aRole.value = u.role || "user";
+        });
+
+        actions.appendChild(btnEdit);
+        actions.appendChild(btnDel);
+
+        div.appendChild(meta);
+        div.appendChild(actions);
+        adminUsers.appendChild(div);
+      });
+    }
+
+    // ===================== ATUALIZAÇÃO GERAL DA INTERFACE =====================
+
+    function atualizarSelectEventos() {
+      // select de pessoas
+      pEvSel.innerHTML = "";
+      const ord = [...eventos].sort((a,b)=>a.nome.localeCompare(b.nome,"pt",{sensitivity:"base"}));
+      ord.forEach(e=>{
+        const op = document.createElement("option");
+        op.value = e.id;
+        op.textContent = e.nome;
+        pEvSel.appendChild(op);
+      });
+
+      // select de relatórios
+      rEventoSel.innerHTML = "<option value=''>Selecione...</option>";
+      ord.forEach(e=>{
+        const op = document.createElement("option");
+        op.value = e.id;
+        op.textContent = e.nome;
+        rEventoSel.appendChild(op);
+      });
+    }
+
+    function atualizarInterface() {
+      atualizarSelectEventos();
+      renderEventos();
+      renderPessoas();
+      renderUsuarios();
+      if (usuarioAtual) atualizarVisibilidadeAdmin();
+    }
+
+    // ===================== UTILIDADES =====================
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+    }
+
+    function sanitizeFilename(s) {
+      return String(s||"").replace(/[^a-z0-9_\-\.]/gi,"_");
+    }
+
+    // ===================== SINCRONIZAÇÃO AUTOMÁTICA CLOUDINARY =====================
+    async function carregarBackupCloudinary() {
+      try {
+        const res = await fetch(servidor + "/listar-backups");
+        if (!res.ok) {
+          console.warn("Não foi possível obter lista de backups do servidor.");
+          return;
+        }
+        const data = await res.json();
+        if (!data.url) {
+          console.warn("Nenhum backup disponível no Cloudinary.");
+          return;
+        }
+
+        console.log("🔽 Baixando backup mais recente:", data.url);
+        const backupRes = await fetch(data.url);
+        const backupJson = await backupRes.json();
+
+        if (!backupJson.eventos || !backupJson.pessoas || !backupJson.usuarios) {
+          console.warn("Backup baixado não contém estrutura válida.");
+          return;
+        }
+
+        // sobrescreve dados locais silenciosamente
+        eventos  = (backupJson.eventos||[]).map(e=>({ ...e, data:e.data||"" }));
+        pessoas  = backupJson.pessoas || [];
+        usuarios = backupJson.usuarios || [];
+
+        localStorage.setItem("eventos",  JSON.stringify(eventos));
+        localStorage.setItem("pessoas",  JSON.stringify(pessoas));
+        localStorage.setItem("usuarios", JSON.stringify(usuarios));
+
+        console.log("✅ Dados restaurados automaticamente do Cloudinary.");
+        atualizarInterface();
+      } catch (err) {
+        console.error("❌ Erro ao carregar backup automático:", err);
+      }
+    }
+
+    // chama a sincronização alguns segundos após carregar a página
+    setTimeout(carregarBackupCloudinary, 3000);
+
+    // ===================== INICIALIZAÇÃO =====================
+    atualizarInterface();
+  </script>
+</body>
+</html>
